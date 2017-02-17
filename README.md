@@ -20,6 +20,12 @@ Most the tweaks required are in the added files `NET45Shims.cs` and `SR.cs`, wit
 
 The only actual NET 4.6+ features used were some Task helps (Task.FromException, Task.FromCanceled, Task.CompletedTask) and the Socket.ConnectAsync task. Microsoft could easily fix these and provide an official nuget package like this to support Win7 and .NET 4.5.
 
+## Install
+
+Nuget package as [System.Net.WebSockets.Client.Managed](https://www.nuget.org/packages/System.Net.WebSockets.Client.Managed/)
+
+`PM> Install-Package System.Net.WebSockets.Client.Managed`
+
 ## Usage
 
 `System.Net.WebSockets.SystemClientWebSocket` class has some helpers for easily creating a ClientWebSocket that will work on the current system. 
