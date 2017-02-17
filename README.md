@@ -18,7 +18,7 @@ The code was taken from here (latest master branch commit 2017/02/17) https://gi
 
 Most the tweaks required are in the added files `NET45Shims.cs` and `SR.cs`, with a few changes to the original source when extensions methods could not be leveraged (NET46-only properties and statics). 
 
-The only actual NET 4.6+ features used were some Task helps (Task.FromException, Task.FromCanceled, Task.CompletedTask) and the Socket.ConnectAsync task. Microsoft could easily fix these and provide an official nuget package like this to support Win7 and .NET 4.5.
+The only actual NET 4.6+ features used were some Task helpers (Task.FromException, Task.FromCanceled, Task.CompletedTask) and the Socket.ConnectAsync task. Microsoft could easily fix these and provide an official nuget package like this to support Win7 and .NET 4.5.
 
 ## Install
 
