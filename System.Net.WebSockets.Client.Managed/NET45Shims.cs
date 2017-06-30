@@ -1,104 +1,77 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets.Managed;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace System
 {
-   static class SocketExtensions
-   {
-      public static async Task<SocketAsyncEventArgs> ConnectAsync(this Socket socket, IPAddress address, int port)
-      {
-         var tcs = new TaskCompletionSource<SocketAsyncEventArgs>();
+    static class SocketExtensions
+    {
+        public static Task ConnectAsync(this Socket socket, IPAddress address, int port)
+        {
+            return Task.Factory.FromAsync(
+                (targetAddress, targetPort, callback, state) => ((Socket)state).BeginConnect(targetAddress, targetPort, callback, state),
+                asyncResult => ((Socket)asyncResult.AsyncState).EndConnect(asyncResult),
+                address,
+                port,
+                state: socket);
+        }
+    }
 
-         var eventArgs = new SocketAsyncEventArgs();
-         eventArgs.RemoteEndPoint = new IPEndPoint(address, port);
-         eventArgs.Completed += (sender, args) =>
-         {
-            if (args.SocketError != SocketError.Success)
+    static class WebSocketUtil
+    {
+        public static ManagedWebSocket CreateClientWebSocket(Stream innerStream,
+            string subProtocol, int receiveBufferSize, int sendBufferSize,
+            TimeSpan keepAliveInterval, bool useZeroMaskingKey, ArraySegment<byte> internalBuffer)
+        {
+            if (innerStream == null)
             {
-               tcs.TrySetException(new SocketException((int)args.SocketError));
+                throw new ArgumentNullException(nameof(innerStream));
             }
-            else
+
+            if (!innerStream.CanRead || !innerStream.CanWrite)
             {
-               tcs.TrySetResult(args);
+                throw new ArgumentException(!innerStream.CanRead ? SR.NotReadableStream : SR.NotWriteableStream, nameof(innerStream));
             }
-         };
 
-         var connectResult = socket.ConnectAsync(eventArgs);
-         if (!connectResult)
-         {
-            tcs.TrySetResult(null);
-         }
+            if (subProtocol != null)
+            {
+                WebSocketValidate.ValidateSubprotocol(subProtocol);
+            }
 
-         return await tcs.Task;
-      }
-   }
+            if (keepAliveInterval != Timeout.InfiniteTimeSpan && keepAliveInterval < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(keepAliveInterval), keepAliveInterval,
+                    SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall,
+                    0));
+            }
 
-   static class UriExtensions
-   {
-      public static string GetIdnHost(this Uri uri)
-      {
-         return new Globalization.IdnMapping().GetAscii(uri.Host);
-      }
-   }
+            if (receiveBufferSize <= 0 || sendBufferSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    receiveBufferSize <= 0 ? nameof(receiveBufferSize) : nameof(sendBufferSize),
+                    receiveBufferSize <= 0 ? receiveBufferSize : sendBufferSize,
+                    SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall, 0));
+            }
 
-   static class TaskUtil
-   {
-      public static Task CompletedTask
-      {
-         get
-         {
-            var t = new TaskCompletionSource<bool>();
-            t.SetResult(true);
-            return t.Task;
-         }
-      }
+            return ManagedWebSocket.CreateFromConnectedStream(
+                innerStream, false, subProtocol, keepAliveInterval,
+                receiveBufferSize, internalBuffer);
+        }
+    }
 
-      public static Task<T> FromCanceled<T>(CancellationToken cancellationToken)
-      {
-         if (!cancellationToken.IsCancellationRequested)
-         {
-            throw new ArgumentOutOfRangeException("Cancellation has not been requested for cancellationToken; its IsCancellationRequested property is false.");
-         }
-         return new Task<T>(() => default(T), cancellationToken, TaskCreationOptions.None);
-      }
+    static class UriExtensions
+    {
+        public static string GetIdnHost(this Uri uri)
+        {
+            return new Globalization.IdnMapping().GetAscii(uri.Host);
+        }
+    }
 
-      public static Task FromCanceled(CancellationToken cancellationToken)
-      {
-         return FromCanceled<bool>(cancellationToken);
-      }
-
-      public static Task<T> FromException<T>(Exception exception)
-      {
-         if (exception == null)
-         {
-            throw new ArgumentNullException(nameof(exception));
-         }
-         var tcs = new TaskCompletionSource<T>();
-         tcs.TrySetException(exception);
-         return tcs.Task;
-      }
-
-      public static Task FromException(Exception exception)
-      {
-         return FromException<bool>(exception);
-      }
-
-   }
-}
-
-namespace System.Net.WebSockets.Managed
-{
-   public static class NetEventSource
-   {
-      public const bool IsEnabled = false;
-      public static void Enter(params object[] p) { }
-      public static void Exit(params object[] p) { }
-      public static void Error(params object[] p) { }
-   }
 }

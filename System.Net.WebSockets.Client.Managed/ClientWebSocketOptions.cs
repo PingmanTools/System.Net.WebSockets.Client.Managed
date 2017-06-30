@@ -10,220 +10,220 @@ using System.Threading;
 
 namespace System.Net.WebSockets.Managed
 {
-   public sealed class ClientWebSocketOptions
-   {
-      private bool _isReadOnly; // After ConnectAsync is called the options cannot be modified.
-      private readonly List<string> _requestedSubProtocols;
-      private readonly WebHeaderCollection _requestHeaders;
-      private TimeSpan _keepAliveInterval = TimeSpan.FromSeconds(30); // Same as WebSocket.DefaultKeepAliveInterval.  TODO #11735: Switch to that when it's available.
-      private bool _useDefaultCredentials;
-      private ICredentials _credentials;
-      private IWebProxy _proxy;
-      private X509CertificateCollection _clientCertificates;
-      private CookieContainer _cookies;
-      private int _receiveBufferSize = 0x1000;
-      private int _sendBufferSize = 0x1000;
-      private ArraySegment<byte>? _buffer;
+    public sealed class ClientWebSocketOptions
+    {
+        private bool _isReadOnly; // After ConnectAsync is called the options cannot be modified.
+        private readonly List<string> _requestedSubProtocols;
+        private readonly WebHeaderCollection _requestHeaders;
+        private TimeSpan _keepAliveInterval = WebSocket.DefaultKeepAliveInterval;
+        private bool _useDefaultCredentials;
+        private ICredentials _credentials;
+        private IWebProxy _proxy;
+        private X509CertificateCollection _clientCertificates;
+        private CookieContainer _cookies;
+        private int _receiveBufferSize = 0x1000;
+        private int _sendBufferSize = 0x1000;
+        private ArraySegment<byte>? _buffer;
 
-      internal ClientWebSocketOptions()
-      {
-         _requestedSubProtocols = new List<string>();
-         _requestHeaders = new WebHeaderCollection();
-      }
+        internal ClientWebSocketOptions()
+        {
+            _requestedSubProtocols = new List<string>();
+            _requestHeaders = new WebHeaderCollection();
+        }
 
-      #region HTTP Settings
+        #region HTTP Settings
 
-      // Note that some headers are restricted like Host.
-      public void SetRequestHeader(string headerName, string headerValue)
-      {
-         ThrowIfReadOnly();
-
-         // WebHeaderCollection performs validation of headerName/headerValue.
-         _requestHeaders[headerName] = headerValue;
-      }
-
-      internal WebHeaderCollection RequestHeaders { get { return _requestHeaders; } }
-
-      internal List<string> RequestedSubProtocols { get { return _requestedSubProtocols; } }
-
-      public bool UseDefaultCredentials
-      {
-         get
-         {
-            return _useDefaultCredentials;
-         }
-         set
-         {
+        // Note that some headers are restricted like Host.
+        public void SetRequestHeader(string headerName, string headerValue)
+        {
             ThrowIfReadOnly();
-            _useDefaultCredentials = value;
-         }
-      }
 
-      public ICredentials Credentials
-      {
-         get
-         {
-            return _credentials;
-         }
-         set
-         {
-            ThrowIfReadOnly();
-            _credentials = value;
-         }
-      }
+            // WebHeaderCollection performs validation of headerName/headerValue.
+            _requestHeaders.Set(headerName, headerValue);
+        }
 
-      public IWebProxy Proxy
-      {
-         get
-         {
-            return _proxy;
-         }
-         set
-         {
-            ThrowIfReadOnly();
-            _proxy = value;
-         }
-      }
+        internal WebHeaderCollection RequestHeaders { get { return _requestHeaders; } }
 
-      [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly",
-          Justification = "This collection will be handed off directly to HttpWebRequest.")]
-      public X509CertificateCollection ClientCertificates
-      {
-         get
-         {
-            if (_clientCertificates == null)
+        internal List<string> RequestedSubProtocols { get { return _requestedSubProtocols; } }
+
+        public bool UseDefaultCredentials
+        {
+            get
             {
-               _clientCertificates = new X509CertificateCollection();
+                return _useDefaultCredentials;
             }
-            return _clientCertificates;
-         }
-         set
-         {
-            ThrowIfReadOnly();
-            if (value == null)
+            set
             {
-               throw new ArgumentNullException(nameof(value));
+                ThrowIfReadOnly();
+                _useDefaultCredentials = value;
             }
-            _clientCertificates = value;
-         }
-      }
+        }
 
-      public CookieContainer Cookies
-      {
-         get
-         {
-            return _cookies;
-         }
-         set
-         {
-            ThrowIfReadOnly();
-            _cookies = value;
-         }
-      }
-
-      #endregion HTTP Settings
-
-      #region WebSocket Settings
-
-      public void AddSubProtocol(string subProtocol)
-      {
-         ThrowIfReadOnly();
-         WebSocketValidate.ValidateSubprotocol(subProtocol);
-
-         // Duplicates not allowed.
-         foreach (string item in _requestedSubProtocols)
-         {
-            if (string.Equals(item, subProtocol, StringComparison.OrdinalIgnoreCase))
+        public ICredentials Credentials
+        {
+            get
             {
-               throw new ArgumentException(SR.Format(SR.net_WebSockets_NoDuplicateProtocol, subProtocol), nameof(subProtocol));
+                return _credentials;
             }
-         }
-         _requestedSubProtocols.Add(subProtocol);
-      }
-
-      public TimeSpan KeepAliveInterval
-      {
-         get
-         {
-            return _keepAliveInterval;
-         }
-         set
-         {
-            ThrowIfReadOnly();
-            if (value != Timeout.InfiniteTimeSpan && value < TimeSpan.Zero)
+            set
             {
-               throw new ArgumentOutOfRangeException(nameof(value), value,
-                   SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall,
-                   Timeout.InfiniteTimeSpan.ToString()));
+                ThrowIfReadOnly();
+                _credentials = value;
             }
-            _keepAliveInterval = value;
-         }
-      }
+        }
 
-      internal int ReceiveBufferSize => _receiveBufferSize;
-      internal int SendBufferSize => _sendBufferSize;
-      internal ArraySegment<byte>? Buffer => _buffer;
+        public IWebProxy Proxy
+        {
+            get
+            {
+                return _proxy;
+            }
+            set
+            {
+                ThrowIfReadOnly();
+                _proxy = value;
+            }
+        }
 
-      public void SetBuffer(int receiveBufferSize, int sendBufferSize)
-      {
-         ThrowIfReadOnly();
+        [SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly",
+            Justification = "This collection will be handed off directly to HttpWebRequest.")]
+        public X509CertificateCollection ClientCertificates
+        {
+            get
+            {
+                if (_clientCertificates == null)
+                {
+                    _clientCertificates = new X509CertificateCollection();
+                }
+                return _clientCertificates;
+            }
+            set
+            {
+                ThrowIfReadOnly();
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                _clientCertificates = value;
+            }
+        }
 
-         if (receiveBufferSize <= 0)
-         {
-            throw new ArgumentOutOfRangeException(nameof(receiveBufferSize), receiveBufferSize, SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall, 1));
-         }
-         if (sendBufferSize <= 0)
-         {
-            throw new ArgumentOutOfRangeException(nameof(sendBufferSize), sendBufferSize, SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall, 1));
-         }
+        public CookieContainer Cookies
+        {
+            get
+            {
+                return _cookies;
+            }
+            set
+            {
+                ThrowIfReadOnly();
+                _cookies = value;
+            }
+        }
 
-         _receiveBufferSize = receiveBufferSize;
-         _sendBufferSize = sendBufferSize;
-         _buffer = null;
-      }
+        #endregion HTTP Settings
 
-      public void SetBuffer(int receiveBufferSize, int sendBufferSize, ArraySegment<byte> buffer)
-      {
-         ThrowIfReadOnly();
+        #region WebSocket Settings
 
-         if (receiveBufferSize <= 0)
-         {
-            throw new ArgumentOutOfRangeException(nameof(receiveBufferSize), receiveBufferSize, SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall, 1));
-         }
-         if (sendBufferSize <= 0)
-         {
-            throw new ArgumentOutOfRangeException(nameof(sendBufferSize), sendBufferSize, SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall, 1));
-         }
+        public void AddSubProtocol(string subProtocol)
+        {
+            ThrowIfReadOnly();
+            WebSocketValidate.ValidateSubprotocol(subProtocol);
 
-         WebSocketValidate.ValidateArraySegment(buffer, nameof(buffer));
-         if (buffer.Count == 0)
-         {
-            throw new ArgumentOutOfRangeException(nameof(buffer));
-         }
+            // Duplicates not allowed.
+            foreach (string item in _requestedSubProtocols)
+            {
+                if (string.Equals(item, subProtocol, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException(SR.Format(SR.net_WebSockets_NoDuplicateProtocol, subProtocol), nameof(subProtocol));
+                }
+            }
+            _requestedSubProtocols.Add(subProtocol);
+        }
 
-         _receiveBufferSize = receiveBufferSize;
-         _sendBufferSize = sendBufferSize;
-         _buffer = buffer;
-      }
+        public TimeSpan KeepAliveInterval
+        {
+            get
+            {
+                return _keepAliveInterval;
+            }
+            set
+            {
+                ThrowIfReadOnly();
+                if (value != Timeout.InfiniteTimeSpan && value < TimeSpan.Zero)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(value), value,
+                        SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall,
+                        Timeout.InfiniteTimeSpan.ToString()));
+                }
+                _keepAliveInterval = value;
+            }
+        }
 
-      #endregion WebSocket settings
+        internal int ReceiveBufferSize => _receiveBufferSize;
+        internal int SendBufferSize => _sendBufferSize;
+        internal ArraySegment<byte>? Buffer => _buffer;
 
-      #region Helpers
+        public void SetBuffer(int receiveBufferSize, int sendBufferSize)
+        {
+            ThrowIfReadOnly();
 
-      internal void SetToReadOnly()
-      {
-         Debug.Assert(!_isReadOnly, "Already set");
-         _isReadOnly = true;
-      }
+            if (receiveBufferSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(receiveBufferSize), receiveBufferSize, SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall, 1));
+            }
+            if (sendBufferSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(sendBufferSize), sendBufferSize, SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall, 1));
+            }
 
-      private void ThrowIfReadOnly()
-      {
-         if (_isReadOnly)
-         {
-            throw new InvalidOperationException(SR.net_WebSockets_AlreadyStarted);
-         }
-      }
+            _receiveBufferSize = receiveBufferSize;
+            _sendBufferSize = sendBufferSize;
+            _buffer = null;
+        }
 
-      #endregion Helpers
-   }
+        public void SetBuffer(int receiveBufferSize, int sendBufferSize, ArraySegment<byte> buffer)
+        {
+            ThrowIfReadOnly();
+
+            if (receiveBufferSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(receiveBufferSize), receiveBufferSize, SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall, 1));
+            }
+            if (sendBufferSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(sendBufferSize), sendBufferSize, SR.Format(SR.net_WebSockets_ArgumentOutOfRange_TooSmall, 1));
+            }
+
+            WebSocketValidate.ValidateArraySegment(buffer, nameof(buffer));
+            if (buffer.Count == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(buffer));
+            }
+
+            _receiveBufferSize = receiveBufferSize;
+            _sendBufferSize = sendBufferSize;
+            _buffer = buffer;
+        }
+
+        #endregion WebSocket settings
+
+        #region Helpers
+
+        internal void SetToReadOnly()
+        {
+            Debug.Assert(!_isReadOnly, "Already set");
+            _isReadOnly = true;
+        }
+
+        private void ThrowIfReadOnly()
+        {
+            if (_isReadOnly)
+            {
+                throw new InvalidOperationException(SR.net_WebSockets_AlreadyStarted);
+            }
+        }
+
+        #endregion Helpers
+    }
 }

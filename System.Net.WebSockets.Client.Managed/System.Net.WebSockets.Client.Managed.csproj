@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>System.Net.WebSockets.Client.Managed</RootNamespace>
     <AssemblyName>System.Net.WebSockets.Client.Managed</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -40,6 +40,12 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Core" />
+    <Reference Include="System.Numerics.Vectors, Version=4.1.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Numerics.Vectors.4.3.0\lib\portable-net45+win8+wp8+wpa81\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.4.3.0\lib\netstandard1.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -48,14 +54,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AsyncEventArgsNetworkStream.cs" />
     <Compile Include="ClientWebSocket.cs" />
     <Compile Include="ClientWebSocketOptions.cs" />
-    <Compile Include="SystemClientWebSocket.cs" />
-    <Compile Include="FormattableString.cs" />
     <Compile Include="HttpKnownHeaderNames.cs" />
     <Compile Include="ManagedWebSocket.cs" />
     <Compile Include="NET45Shims.cs" />
+    <Compile Include="NetEventSource.WebSockets.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SecurityProtocol.cs" />
     <Compile Include="SR.cs" />
@@ -65,6 +69,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Strings.resx</DependentUpon>
     </Compile>
+    <Compile Include="SystemClientWebSocket.cs" />
     <Compile Include="UriScheme.cs" />
     <Compile Include="WebSocketHandle.Managed.cs" />
     <Compile Include="WebSocketValidate.cs" />

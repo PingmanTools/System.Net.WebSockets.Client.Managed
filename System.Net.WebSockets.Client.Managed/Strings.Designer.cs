@@ -61,15 +61,6 @@ namespace System.Net.WebSockets.Client.Managed {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Exception in {0}::{1} - {2}..
-        /// </summary>
-        internal static string net_log_exception {
-            get {
-                return ResourceManager.GetString("net_log_exception", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to The requested security protocol is not supported..
         /// </summary>
         internal static string net_securityprotocolnotsupported {
@@ -124,15 +115,6 @@ namespace System.Net.WebSockets.Client.Managed {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The value of the &apos;{0}&apos; parameter ({1}) must be less than or equal to {2}..
-        /// </summary>
-        internal static string net_WebSockets_ArgumentOutOfRange_TooBig {
-            get {
-                return ResourceManager.GetString("net_WebSockets_ArgumentOutOfRange_TooBig", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to The argument must be a value greater than {0}..
         /// </summary>
         internal static string net_WebSockets_ArgumentOutOfRange_TooSmall {
@@ -183,15 +165,6 @@ namespace System.Net.WebSockets.Client.Managed {
         internal static string net_WebSockets_InvalidEmptySubProtocol {
             get {
                 return ResourceManager.GetString("net_WebSockets_InvalidEmptySubProtocol", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to The received message type &apos;{2}&apos; is invalid after calling {0}. {0} should only be used if no more data is expected from the remote endpoint. Use &apos;{1}&apos; instead to keep being able to receive data but close the output channel..
-        /// </summary>
-        internal static string net_WebSockets_InvalidMessageType {
-            get {
-                return ResourceManager.GetString("net_WebSockets_InvalidMessageType", resourceCulture);
             }
         }
         
@@ -273,6 +246,24 @@ namespace System.Net.WebSockets.Client.Managed {
         internal static string net_webstatus_ConnectFailure {
             get {
                 return ResourceManager.GetString("net_webstatus_ConnectFailure", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The base stream is not readable..
+        /// </summary>
+        internal static string NotReadableStream {
+            get {
+                return ResourceManager.GetString("NotReadableStream", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The base stream is not writeable..
+        /// </summary>
+        internal static string NotWriteableStream {
+            get {
+                return ResourceManager.GetString("NotWriteableStream", resourceCulture);
             }
         }
     }
