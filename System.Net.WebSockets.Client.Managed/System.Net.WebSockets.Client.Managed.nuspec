@@ -12,6 +12,7 @@
     <tags>websockets websocket-client websocketsharp clientwebsocket</tags>
     <dependencies>
       <dependency id="System.Buffers" version="4.3.0" />
+      <dependency id="System.Numerics.Vectors" version="4.3.0" />
     </dependencies>
   </metadata>
   <files>
