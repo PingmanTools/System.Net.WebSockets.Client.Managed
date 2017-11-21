@@ -105,6 +105,7 @@ namespace System.Net.WebSockets.Managed
 
         public async Task ConnectAsyncCore(Uri uri, CancellationToken cancellationToken, ClientWebSocketOptions options)
         {
+            HttpResponseMessage response = null;
             try
             {
                 // Create the request message, including a uri with ws{s} switched to http{s}.
@@ -134,13 +135,30 @@ namespace System.Net.WebSockets.Managed
                     handler.ClientCertificateOptions = ClientCertificateOption.Manual;
                     //handler.ClientCertificates.AddRange(options.ClientCertificates);
                 }
-
-                // Issue the request.  The response must be status code 101.
-                HttpResponseMessage response = await handler.SendAsync(request, cancellationToken).ConfigureAwait(false);
-                if (response.StatusCode != HttpStatusCode.SwitchingProtocols)
+                CancellationTokenSource linkedCancellation, externalAndAbortCancellation;
+                if (cancellationToken.CanBeCanceled) // avoid allocating linked source if external token is not cancelable
                 {
-                    throw new WebSocketException(SR.net_webstatus_ConnectFailure);
+                    linkedCancellation =
+                        externalAndAbortCancellation =
+                        CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _abortSource.Token);
                 }
+                else
+                {
+                    linkedCancellation = null;
+                    externalAndAbortCancellation = _abortSource;
+                }
+
+               using (linkedCancellation)
+               {
+                    response = await handler.SendAsync(request, externalAndAbortCancellation.Token).ConfigureAwait(false);
+                    externalAndAbortCancellation.Token.ThrowIfCancellationRequested();
+               }
+
+               // Issue the request.  The response must be status code 101.
+               if (response.StatusCode != HttpStatusCode.SwitchingProtocols)
+               {
+                    throw new WebSocketException(SR.net_webstatus_ConnectFailure);
+               }
 
                 // The Connection, Upgrade, and SecWebSocketAccept headers are required and with specific values.
                 ValidateHeader(response.Headers, HttpKnownHeaderNames.Connection, "Upgrade");
@@ -186,6 +204,7 @@ namespace System.Net.WebSockets.Managed
                 }
 
                 Abort();
+                response?.Dispose();
 
                 if (exc is WebSocketException)
                 {
