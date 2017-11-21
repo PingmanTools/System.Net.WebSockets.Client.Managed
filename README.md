@@ -12,7 +12,8 @@ Thankfully Microsoft did implement that abstract class in managed code for use o
 
 This project is the managed System.Net.WebSockets.Client code with a few tweaks to work on .NET 4.5.
 
-The code was taken from here (latest master branch commit 2017/02/17) https://github.com/dotnet/corefx/tree/44d5ea6ceeca64e8795e85d1b0aabfb7c1e64b80/src/System.Net.WebSockets.Client
+The code was taken from here (latest master branch commit 2017/02/17)
+https://github.com/dotnet/corefx/tree/518ea1c2f8ad882c9829c8c35d27d92063ac67f7/src/System.Net.WebSockets.Client
 
 ---
 
