@@ -82,7 +82,7 @@ namespace System.Net.WebSockets.Managed
                 var httpUri = new UriBuilder(uri) { Scheme = (uri.Scheme == UriScheme.Ws) ? UriScheme.Http : UriScheme.Https }.Uri;
                 var connectUri = httpUri;
                 bool useProxy = false;
-                if(!options.Proxy.IsBypassed(httpUri))
+                if(options.Proxy != null && !options.Proxy.IsBypassed(httpUri))
                 {
                     useProxy = true;
                     connectUri = options.Proxy.GetProxy(httpUri);
