@@ -12,8 +12,10 @@ Thankfully Microsoft did implement that abstract class in managed code for use o
 
 This project is the managed System.Net.WebSockets.Client code with a few tweaks to work on .NET 4.5.
 
-The code was taken from here
-https://github.com/dotnet/corefx/tree/518ea1c2f8ad882c9829c8c35d27d92063ac67f7/src/System.Net.WebSockets.Client
+The code was taken from the CoreFX `release/2.0.0` branch on Nov 28th, 2017:
+* [System.Net.WebSockets.Client/src/System/Net/WebSockets](https://github.com/dotnet/corefx/tree/17c427343d7f2e9321f96a5615e4f0687878cfcf/src/System.Net.WebSockets.Client/src/System/Net/WebSockets)
+* [System.Net.WebSockets/src/System/Net/WebSockets](https://github.com/dotnet/corefx/tree/17c427343d7f2e9321f96a5615e4f0687878cfcf/src/System.Net.WebSockets/src/System/Net/WebSockets)
+* [System.Net.WebSockets/src/Common/src/System/Net/WebSockets](https://github.com/dotnet/corefx/tree/17c427343d7f2e9321f96a5615e4f0687878cfcf/src/Common/src/System/Net/WebSockets)
 
 ---
 
