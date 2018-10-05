@@ -2,9 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using ManagedSSPI;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Runtime.ExceptionServices;
@@ -73,26 +75,35 @@ namespace System.Net.WebSockets.Managed
 
         public async Task ConnectAsyncCore(Uri uri, CancellationToken cancellationToken, ClientWebSocketOptions options)
         {
-            // TODO #14480 : Not currently implemented, or explicitly ignored:
-            // - ClientWebSocketOptions.UseDefaultCredentials
-            // - ClientWebSocketOptions.Credentials
-            // - ClientWebSocketOptions.Proxy
-            // - ClientWebSocketOptions._sendBufferSize
-
             // Establish connection to the server
             CancellationTokenRegistration registration = cancellationToken.Register(s => ((WebSocketHandle)s).Abort(), this);
             try
             {
+                var httpUri = new UriBuilder(uri) { Scheme = (uri.Scheme == UriScheme.Ws) ? UriScheme.Http : UriScheme.Https }.Uri;
+                var connectUri = httpUri;
+                bool useProxy = false;
+                if(options.Proxy != null && !options.Proxy.IsBypassed(httpUri))
+                {
+                    useProxy = true;
+                    connectUri = options.Proxy.GetProxy(httpUri);
+                }
+
                 // Connect to the remote server
-                Socket connectedSocket = await ConnectSocketAsync(uri.Host, uri.Port, cancellationToken).ConfigureAwait(false);
+                Socket connectedSocket = await ConnectSocketAsync(connectUri.Host, connectUri.Port, cancellationToken).ConfigureAwait(false);
                 Stream stream = new NetworkStream(connectedSocket, ownsSocket: true);
 
+                // establish a tunnel if needed
+                if(useProxy)
+                {
+                    stream = await EstablishTunnelTrhoughWebProxy(stream, httpUri, connectUri, cancellationToken).ConfigureAwait(false);
+                }
+
                 // Upgrade to SSL if needed
-                if (uri.Scheme == UriScheme.Wss)
+                if (httpUri.Scheme == UriScheme.Https)
                 {
                     var sslStream = new SslStream(stream);
                     await sslStream.AuthenticateAsClientAsync(
-                        uri.Host,
+                        httpUri.Host,
                         options.ClientCertificates,
                         SecurityProtocol.AllowedSecurityProtocols,
                         checkCertificateRevocation: false).ConfigureAwait(false);
@@ -109,8 +120,8 @@ namespace System.Net.WebSockets.Managed
                 // Parse the response and store our state for the remainder of the connection
                 string subprotocol = await ParseAndValidateConnectResponseAsync(stream, options, secKeyAndSecWebSocketAccept.Value, cancellationToken).ConfigureAwait(false);
 
-                _webSocket = ManagedWebSocket.CreateFromConnectedStream(
-                    stream, false, subprotocol, options.KeepAliveInterval, options.ReceiveBufferSize, options.Buffer);
+                _webSocket = WebSocketUtil.CreateClientWebSocket(
+                    stream, subprotocol, options.ReceiveBufferSize, options.SendBufferSize, options.KeepAliveInterval, false, options.Buffer.GetValueOrDefault());
 
                 // If a concurrent Abort or Dispose came in before we set _webSocket, make sure to update it appropriately
                 if (_state == WebSocketState.Aborted)
@@ -140,6 +151,86 @@ namespace System.Net.WebSockets.Managed
             finally
             {
                 registration.Dispose();
+            }
+        }
+
+        private async Task<Stream> EstablishTunnelTrhoughWebProxy(Stream stream, Uri httpUri, Uri proxyUri, CancellationToken cancellationToken)
+        {
+            var proxyHeder = s_defaultHttpEncoding.GetBytes($"CONNECT {httpUri.Host}:{httpUri.Port} HTTP/1.1\r\nHost: {httpUri.Host}:{httpUri.Port}\r\n\r\n");
+            await stream.WriteAsync(proxyHeder, 0, proxyHeder.Length, cancellationToken).ConfigureAwait(false);
+            string statusline = await ReadResponseHeaderLineAsync(stream, cancellationToken).ConfigureAwait(false);
+            if (statusline.StartsWith("HTTP/1.1 407"))
+            {
+                var authPackages = new List<string>();
+                string line;
+                while (!string.IsNullOrEmpty(line = await ReadResponseHeaderLineAsync(stream, cancellationToken).ConfigureAwait(false)))
+                {
+                    if (line.ToLowerInvariant().StartsWith("proxy-authenticate: "))
+                    {
+                        authPackages.Add(line.ToLowerInvariant().Substring("proxy-authenticate: ".Length));
+                    }
+                }
+                // close annonymous connection
+                stream.Close();
+                // re-establish a new one and authenticate it.
+                var connectedSocket = await ConnectSocketAsync(proxyUri.Host, proxyUri.Port, cancellationToken).ConfigureAwait(false);
+                stream = new NetworkStream(connectedSocket, ownsSocket: true);
+                await AuthenticateProxyStream(stream, authPackages, proxyUri.Host, httpUri, cancellationToken);
+            }
+            else if(statusline.StartsWith("HTTP/1.1 200"))
+            {
+                // no authentication needed read the rest of the proxy response
+                string line;
+                while (!string.IsNullOrEmpty(line = await ReadResponseHeaderLineAsync(stream, cancellationToken).ConfigureAwait(false))) { }
+            }
+            return stream;
+        }
+
+        private async Task AuthenticateProxyStream(Stream stream, List<string> proxyAuthPackages, string proxyHost, Uri targetUrl, CancellationToken cancellationToken)
+        {
+            var localAuthPackages = SSPIClient.EnumerateSecurityPackages();
+            var packageToUse = "NTLM"; // a good safe default
+            foreach(var package in proxyAuthPackages)
+            {
+                try
+                {
+                    var localPackage = localAuthPackages.FirstOrDefault(p => p.Name.ToLowerInvariant() == package);
+                    var requiredCapabilities = SecurityCapabilities.AccepsWin32Names | SecurityCapabilities.SupportsConnections;
+                    if ((localPackage.Capabilities & requiredCapabilities) != 0)
+                    {
+                        packageToUse = localPackage.Name;
+                        break; // found our package
+                    }
+                }
+                catch(Exception)
+                {
+                    // cat't use this particular package
+                }
+            }
+            using (var sspi = new SSPIClient(packageToUse))
+            {
+                byte[] serverToken = null;
+                bool authSucceeded = false;
+                var clientToken = Convert.ToBase64String(sspi.GetClientToken(serverToken));
+                while (!authSucceeded)
+                {
+                    var authHeader = $"Proxy-Authorization: {packageToUse} {clientToken}";
+                    var proxyHeder = s_defaultHttpEncoding.GetBytes($"CONNECT {targetUrl.Host}:{targetUrl.Port} HTTP/1.1\r\nHost: {targetUrl.Host}:{targetUrl.Port}\r\n{authHeader}\r\n\r\n");
+                    await stream.WriteAsync(proxyHeder, 0, proxyHeder.Length, cancellationToken).ConfigureAwait(false);
+                    string statusline = await ReadResponseHeaderLineAsync(stream, cancellationToken).ConfigureAwait(false);
+                    string line;
+                    while (!string.IsNullOrEmpty(line = await ReadResponseHeaderLineAsync(stream, cancellationToken).ConfigureAwait(false)))
+                    {
+                        if (line.ToLowerInvariant().StartsWith($"proxy-authenticate: {packageToUse.ToLowerInvariant()}"))
+                        {
+                            serverToken = Convert.FromBase64String(line.Substring($"proxy-authenticate: {packageToUse.ToLowerInvariant()}".Length));
+                        }
+                    }
+                    if (statusline.StartsWith("HTTP/1.1 200"))
+                        authSucceeded = true;
+                    else
+                        clientToken = Convert.ToBase64String(sspi.GetClientToken(serverToken));
+                }
             }
         }
 
@@ -211,7 +302,7 @@ namespace System.Net.WebSockets.Managed
                 builder.Append("Host: ");
                 if (string.IsNullOrEmpty(hostHeader))
                 {
-                    builder.Append(uri.DnsSafeHost).Append(':').Append(uri.Port).Append("\r\n");
+                    builder.Append(uri.GetIdnHost()).Append(':').Append(uri.Port).Append("\r\n");
                 }
                 else
                 {
